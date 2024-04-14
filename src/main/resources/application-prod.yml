@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    # 这里url是配置线上地址，这里用另一个表代替
+    url: jdbc:mysql://localhost:3306/user_center
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  application:
+    name: usercenter
+  # session失效时间
+  session:
+    timeout: 86400
