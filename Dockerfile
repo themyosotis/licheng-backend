@@ -1,4 +1,4 @@
-FROM maven:3.9-jdk-17-alpine as builder
+FROM openjdk:17-alpine as builder
 
 # Copy local code to the container image.
 WORKDIR /app
