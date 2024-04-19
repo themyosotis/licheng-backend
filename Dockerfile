@@ -1,4 +1,4 @@
-FROM maven:3.5-jdk-17-alpine as builder
+FROM maven:3.9.5-amazoncorretto-17-al2023 as builder
 
 # Copy local code to the container image.
 WORKDIR /app
