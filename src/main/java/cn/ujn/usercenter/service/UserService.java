@@ -4,6 +4,8 @@ import cn.ujn.usercenter.model.domain.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.util.List;
+
 /**
 * @author 26532
 * @description 针对表【user(用户)】的数据库操作Service
@@ -46,4 +48,11 @@ public interface UserService extends IService<User> {
      * @param request
      */
     int userLogout(HttpServletRequest request);
+
+    /**
+     * 根据当前标签搜索用户
+     * @param tagNameList
+     * @return
+     */
+    List<User> searchUsersByTags(List<String> tagNameList);
 }

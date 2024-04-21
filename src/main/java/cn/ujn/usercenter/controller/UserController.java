@@ -26,6 +26,9 @@ import static cn.ujn.usercenter.constant.UserConstant.USER_LOGIN_STATE;
  */
 @RestController
 @RequestMapping("/user")
+//@CrossOrigin 允许跨域
+// http://192.168.80.128 是我本地VM虚拟机 centos 的ip地址
+//@CrossOrigin(origins = {"http://192.168.80.128"},methods = {RequestMethod.GET,RequestMethod.POST},allowCredentials = true)
 // 适用于编写restful分隔的api，返回数据默认为json
 public class UserController {
 

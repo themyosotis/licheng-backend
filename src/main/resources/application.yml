@@ -5,7 +5,7 @@ spring:
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
   application:
-    name: usercenter
+    name: user-center-backend
   # session失效时间
   session:
     timeout: 86400
@@ -17,6 +17,7 @@ mybatis-plus:
   configuration:
 #    数据库用的驼峰非下划线，关闭下划线转驼峰
     map-underscore-to-camel-case: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       logic-delete-field: isDelete # 全局逻辑删除的实体字段名(since 3.3.0,配置后可以忽略不配置步骤2)
