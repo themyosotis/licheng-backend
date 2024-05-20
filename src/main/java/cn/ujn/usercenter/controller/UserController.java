@@ -26,6 +26,7 @@ import static cn.ujn.usercenter.constant.UserConstant.USER_LOGIN_STATE;
  */
 @RestController
 @RequestMapping("/user")
+@CrossOrigin(origins = {"http://localhost:3000"})
 //@CrossOrigin 允许跨域
 // http://192.168.80.128 是我本地VM虚拟机 centos 的ip地址
 //@CrossOrigin(origins = {"http://192.168.80.128"},methods = {RequestMethod.GET,RequestMethod.POST},allowCredentials = true)
@@ -48,7 +49,7 @@ public class UserController {
         if (StringUtils.isAnyBlank(userAccount, userPassword, checkPassword, planetCode)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        long result= userService.userRegister(userAccount, userPassword, checkPassword, planetCode);
+        long result = userService.userRegister(userAccount, userPassword, checkPassword, planetCode);
 //        return new BaseResponse<>(0,result,"ok");
         return ResultUtils.success(result);
     }
@@ -62,7 +63,7 @@ public class UserController {
         String userPassword = userLoginRequest.getUserPassword();
 
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
-            throw new BusinessException(ErrorCode.NULL_ERROR,"账号或密码为空");
+            throw new BusinessException(ErrorCode.NULL_ERROR, "账号或密码为空");
         }
         User user = userService.userLogin(userAccount, userPassword, request);
 //        return new BaseResponse<>(0,user,"ok");
@@ -104,6 +105,15 @@ public class UserController {
         List<User> userList = userService.list(queryWrapper);
         List<User> list = userList.stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
         return ResultUtils.success(list);
+    }
+
+    @GetMapping("/search/tags")
+    public BaseResponse<List<User>> searchUserByTags(@RequestParam(required = false) List<String> tagNameList) {
+        if (tagNameList.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        List<User> userList = userService.searchUsersByTags(tagNameList);
+        return ResultUtils.success(userList);
     }
 
     @GetMapping("/delete")

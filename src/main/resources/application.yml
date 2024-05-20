@@ -1,4 +1,6 @@
 spring:
+  profiles:
+    active: dev
   datasource:
     url: jdbc:mysql://localhost:3306/xincheng
     username: root
@@ -6,16 +8,22 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   application:
     name: user-center-backend
-  # session失效时间
+  # session失效时间 (分钟)
   session:
     timeout: 86400
+  # redis 配置
+  data:
+    redis:
+      port: 6379
+      host: localhost
+      database: 0
 server:
   port: 8080
   servlet:
     context-path: /api
 mybatis-plus:
   configuration:
-#    数据库用的驼峰非下划线，关闭下划线转驼峰
+    #    数据库用的驼峰非下划线，关闭下划线转驼峰
     map-underscore-to-camel-case: false
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:

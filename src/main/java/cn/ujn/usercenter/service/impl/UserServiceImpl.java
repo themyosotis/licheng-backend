@@ -20,7 +20,9 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
 
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -185,7 +187,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     }
 
     /**
-     * 根据标签搜索用户
+     * 根据标签搜索用户 (内存过滤)
      *
      * @param tagNameList 用户拥有的标签
      * @return
@@ -195,14 +197,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (CollectionUtils.isEmpty(tagNameList)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-//        //拼接 and查询
-//        QueryWrapper<User> queryWrapper = new QueryWrapper<User>();
-//        for (String tagName : tagNameList) {
-//            queryWrapper = queryWrapper.like("tags",tagName);
-//        }
-//        List<User> userList = userMapper.selectList(queryWrapper);
-//        return userList.stream().map(this::getSafetyUser).collect(Collectors.toList());
-
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
         // 1.先查询所有用户
         List<User> userList = userMapper.selectList(queryWrapper);
@@ -210,11 +204,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         Gson gson = new Gson();
         return userList.stream().filter(user -> {
             String tagStr = user.getTags();
-            if (StringUtils.isBlank(tagStr)){
+            if (StringUtils.isBlank(tagStr)) {
                 return false;
             }
             Set<String> tempTagNameSet = gson.fromJson(tagStr, new TypeToken<Set<String>>() {
             }.getType());
+            tempTagNameSet = Optional.ofNullable(tempTagNameSet).orElse(new HashSet<>());
             for (String tagName : tagNameList) {
                 if (!tempTagNameSet.contains(tagName)) {
                     return false;
@@ -223,6 +218,26 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             return true;
         }).map(this::getSafetyUser).collect(Collectors.toList());
 
+    }
+
+    /**
+     * 根据标签搜索用户(sql查询版)
+     *
+     * @param tagNameList 用户拥有的标签
+     * @return
+     */
+    @Deprecated
+    private List<User> searchUsersByTagsBySQL(List<String> tagNameList) {
+        if (CollectionUtils.isEmpty(tagNameList)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        //拼接 and查询
+        QueryWrapper<User> queryWrapper = new QueryWrapper<User>();
+        for (String tagName : tagNameList) {
+            queryWrapper = queryWrapper.like("tags", tagName);
+        }
+        List<User> userList = userMapper.selectList(queryWrapper);
+        return userList.stream().map(this::getSafetyUser).collect(Collectors.toList());
     }
 }
 
