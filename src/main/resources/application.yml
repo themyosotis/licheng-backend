@@ -21,6 +21,10 @@ server:
   port: 8080
   servlet:
     context-path: /api
+#    这里domain: localhost加不加都可以
+#    session:
+#      cookie:
+#        domain: localhost
 mybatis-plus:
   configuration:
     #    数据库用的驼峰非下划线，关闭下划线转驼峰

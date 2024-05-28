@@ -9,6 +9,8 @@ import cn.ujn.usercenter.model.domain.request.UserLoginRequest;
 import cn.ujn.usercenter.model.domain.request.UserRegisterRequest;
 import cn.ujn.usercenter.service.UserService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -95,7 +97,7 @@ public class UserController {
 
     @GetMapping("/search")
     public BaseResponse<List<User>> searchUsers(String username, HttpServletRequest request) {
-        if (!isAdmin(request)) {
+        if (!userService.isAdmin(request)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
@@ -107,6 +109,14 @@ public class UserController {
         return ResultUtils.success(list);
     }
 
+    @GetMapping("/recommend")
+    public BaseResponse<Page<User>> recommendUsers(long pageSize, long pageNum, HttpServletRequest request) {
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        Page<User> userList = userService
+                .page(new Page<>(pageNum, pageSize), queryWrapper);
+        return ResultUtils.success(userList);
+    }
+
     @GetMapping("/search/tags")
     public BaseResponse<List<User>> searchUserByTags(@RequestParam(required = false) List<String> tagNameList) {
         if (tagNameList.isEmpty()) {
@@ -116,9 +126,21 @@ public class UserController {
         return ResultUtils.success(userList);
     }
 
+    @PostMapping("/update")
+    public BaseResponse<Integer> updateUser(@RequestBody User user, HttpServletRequest request) {
+        //校验参数是否为空
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+
+        int result = userService.updateUser(user, loginUser);
+        return ResultUtils.success(result);
+    }
+
     @GetMapping("/delete")
     public BaseResponse<Boolean> deleteUser(@RequestBody long id, HttpServletRequest request) {
-        if (!isAdmin(request)) {
+        if (!userService.isAdmin(request)) {
             throw new BusinessException(ErrorCode.NO_AUTH);
         }
         if (id <= 0) {
@@ -128,16 +150,5 @@ public class UserController {
         return ResultUtils.success(b);
     }
 
-    /**
-     * 是否为管理员
-     *
-     * @param request
-     * @return
-     */
-    private boolean isAdmin(HttpServletRequest request) {
-        // 仅管理员可查询
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
-        User user = (User) userObj;
-        return user != null && user.getUserRole() == ADMIN_ROLE;
-    }
+
 }
