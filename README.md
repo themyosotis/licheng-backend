@@ -643,9 +643,7 @@ private ExecutorService executorService =new ThreadPoolExecutor(60,1000,10000, T
 
 
 
-# **这里数据库大概有了200万条数据**
-
-
+**这里数据库大概有了200万条数据**
 
 
 
@@ -657,17 +655,252 @@ private ExecutorService executorService =new ThreadPoolExecutor(60,1000,10000, T
 
 
 
+**数据库查询慢，预先把数据查询出来，放到一个读取更快的地方，不用再读取数据库（缓存）**
+
+预加载缓存，定时更新缓存（定时任务）
+
+多个机器都要执行吗？（分布式锁：控制同一时间只有一台机器去执行定时任务，其他机器不用重复执行了）
+
+
+
+## 数据查询慢怎么办？
+
+用缓存：提前把数据取出来保存好（通常是保存到读写更快的介质，比如内存），就可以更快地读写。
+
+
+
+### 缓存的实现
+
+- Redis（分布式缓存）
+- memcached（分布式）
+- Etcd（云原生架构的一个分布式存储，**存储配置**，扩容能力）
+
+----
+
+- ehcache(单机)
+- 本地缓存（java内存，Map）
+- Caffeine（Java内存缓存，高性能）
+- Google Guava
+
+
+
+## Redis
+
+>NoSQL 数据库
+
+key - value 存储系统（区别于MySQL，它存储的是键值对）
+
+### Redis 数据结构
+
+String 字符串类型：name:"xincheng"
+
+List 列表：names:["xincheng","dogxincheng","xincheng"]
+
+Set 集合: names["xincheng","dogxincheng"]（值不能重复）
+
+Hash 哈希：nameAge：{"xincheng":1,"dogxincheng":2}
+
+Zset 集合： names：{ xincheng - 9, dogxincheng  - 12 } (每个值跟一个分数，适合做排行榜)
+
+
+
+bloomfilter（布隆过滤器，主要从大量的数据中快速过滤值，比如邮箱黑名单拦截）
+
+geo (计算地理位置)
+
+hyperloglog  (pv / uv)
+
+pub / sub （发布订阅，类似消息队列）
+
+BitMap （01010101010101010）
+
+
+
+### 自定义序列化
+
+```java
+package cn.ujn.usercenter.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.RedisSerializer;
+
+/**
+ * @author XinCheng
+ * date 2024-05-31
+ */
+@Configuration
+public class RedisTemplateConfig {
+
+    @Bean
+    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
+        redisTemplate.setConnectionFactory(connectionFactory);
+        redisTemplate.setKeySerializer(RedisSerializer.string());
+        return redisTemplate;
+    }
+}
+
+```
+
+
+
+> 引入一个库时，先写测试类
+
+
+
+### Java里的实现方式
+
+#### Spring Data Redis（推荐）
+
+Spring Data通用的数据访问框架，定义了一组**增删改查**的接口
+
+mysql，redis，jpa
+
+spring-data-redis
+
+
+
+1. 引入
+
+   ```java
+   <dependency>
+       <groupId>org.springframework.boot</groupId>
+       <artifactId>spring-boot-starter-data-redis</artifactId>
+       <version>3.2.4</version>
+   </dependency>
+   ```
+
+2. 配置Redis地址
+
+   ````yml
+   spring:
+   # redis 配置
+     data:
+       redis:
+         port: 6379
+         host: localhost
+         database: 0
+   ````
+
+
+
+#### Jedis
+
+独立于Spring操作的Redis的 Java 客户端
+
+要配合Jedis Pool使用
+
+
+
+#### Lettuce
+
+**高阶**的操作 Redis 的 Java 客户端
+
+异步、连接池
+
+
+
+#### Redisson
+
+分布式操作 Redis 的 Java 客户端，让你像在使用本地的集合一样操作Redis（分布式的 Redis 数据网格）
+
+
+
+#### JetCache
+
+
+
+### 对比
+
+1. 如果用的是Spring，并且没有过多的定制化要求，可以用 Spring Data Redis，最方便
+2. 如果你用的不是Spring，并且追求简单，并且没有过高的性能要求，可以用Jedis + Jedis Pool
+3. 如果你的项目不是Spring ，并且追求高性能、高定制化，可以用 **Lettuce**
+
+----
+
+- 如果你的项目是分布式的，需要用到一些分布式的特性（比如分布式锁，分布式集合），推荐使用 redisson
+
+
+
+### 设计缓存的Key
+
+不同用户看到的数据不同
+
+systemId:moduleId:func:options (不要和别人冲突)
+
+licheng:user:recommend:userId
+
+#### redis 内存不能无限增加，一定要设置国企时间！！！
+
+
+
+## 缓存预热
+
+问题：第一个用户访问还是很慢（假如第一个用户是老板），也能一定程度上保护数据库
+
+缓存预热的优点：
+
+1. 解决上面的问题，可以让用户始终访问很快
+
+缺点：
+
+1. 增加开发成本（要额外的开发、设计）
+2. 预热的时机和时间如果错了，可能缓存的数据不对或者太老
+3. **需要占用额外空间**
+
+
+
+### 怎么缓存预热
+
+1. 定时
+2. 模拟触发（手动触发）
+
+
+
+> 分析优缺点的时候，要打开思路，从整个项目从0到1的链路上去分析
+
+
+
+#### 实现
+
+用定时任务，每天刷新所有用户的推荐列表
+
+注意点：
+
+1. 缓存预热的意义（新增少，总用户多）
+2. 缓存空间不能太大，要预留其他缓存空间
+3. 缓存数据的周期（此处每天一次）
+
+
+
+## 定时任务实现
+
+1. **Spring Scheduler（spring boot 默认整合了）**@Scheduled
+2. Quartz (独立于Spring存在的定时任务框架)
+3. XXL-job之类的分布式任务调度平台（界面+sdk）
+
+
+
+第一种方式：
+
+1. 主类开启@EnableScheduling
+2. 给要定时执行的方法添加@Scheduled注解，指定cron表达式或者执行频率
+
+> 这里实现是设置mainUserList，对mainUser进行缓存预热，使用定时任务每天定时执行，仅为实验，实际使用需要结合具体情况
+>
+> 后续优化可以对设置mainUser表对其进行缓存预热
 
 
 
 
-### 小总结：到此，测试了多线程并行异步插入大量数据，后端对于大量数据使用MyBatisPlus分页插件进行分页查询，前端首页推荐页面进行对应调整，对于大量数据的搜索功能还并未优化
 
+不要去背 cron 表达式！！！！！！
 
-
-看到31集00：00
-
-
+- [Cron - 在线Cron表达式生成器 (ciding.cc)](https://cron.ciding.cc/)
+- [在线Cron表达式生成器 (qqe2.com)](https://cron.qqe2.com/)
 
 
 
@@ -675,3 +908,6 @@ private ExecutorService executorService =new ThreadPoolExecutor(60,1000,10000, T
 
 前端：动态展示页面标题，微调格式
 
+
+
+37：00
