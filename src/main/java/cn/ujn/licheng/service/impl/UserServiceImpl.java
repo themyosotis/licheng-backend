@@ -1,7 +1,7 @@
 package cn.ujn.licheng.service.impl;
 
 
-import cn.ujn.licheng.commen.ErrorCode;
+import cn.ujn.licheng.common.ErrorCode;
 import cn.ujn.licheng.exception.BusinessException;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;

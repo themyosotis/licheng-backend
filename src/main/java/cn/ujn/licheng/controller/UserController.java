@@ -1,12 +1,12 @@
 package cn.ujn.licheng.controller;
 
-import cn.ujn.licheng.commen.BaseResponse;
-import cn.ujn.licheng.commen.ErrorCode;
-import cn.ujn.licheng.commen.ResultUtils;
+import cn.ujn.licheng.common.BaseResponse;
+import cn.ujn.licheng.common.ErrorCode;
+import cn.ujn.licheng.common.ResultUtils;
 import cn.ujn.licheng.exception.BusinessException;
 import cn.ujn.licheng.model.domain.User;
-import cn.ujn.licheng.model.domain.request.UserLoginRequest;
-import cn.ujn.licheng.model.domain.request.UserRegisterRequest;
+import cn.ujn.licheng.model.request.UserLoginRequest;
+import cn.ujn.licheng.model.request.UserRegisterRequest;
 import cn.ujn.licheng.service.UserService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;

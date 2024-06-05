@@ -1,6 +1,6 @@
 package cn.ujn.licheng.exception;
 
-import cn.ujn.licheng.commen.ErrorCode;
+import cn.ujn.licheng.common.ErrorCode;
 
 /**
  * 自定义异常类

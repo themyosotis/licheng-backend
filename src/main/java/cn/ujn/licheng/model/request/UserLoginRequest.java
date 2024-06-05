@@ -1,4 +1,4 @@
-package cn.ujn.licheng.model.domain.request;
+package cn.ujn.licheng.model.request;
 
 import lombok.Data;
 

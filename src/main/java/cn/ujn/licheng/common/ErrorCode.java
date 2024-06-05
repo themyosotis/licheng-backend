@@ -1,4 +1,4 @@
-package cn.ujn.licheng.commen;
+package cn.ujn.licheng.common;
 
 /**
  * 错误码

@@ -1,8 +1,8 @@
 package cn.ujn.licheng.exception;
 
-import cn.ujn.licheng.commen.BaseResponse;
-import cn.ujn.licheng.commen.ErrorCode;
-import cn.ujn.licheng.commen.ResultUtils;
+import cn.ujn.licheng.common.BaseResponse;
+import cn.ujn.licheng.common.ErrorCode;
+import cn.ujn.licheng.common.ResultUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;

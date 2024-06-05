@@ -833,7 +833,7 @@ systemId:moduleId:func:options (不要和别人冲突)
 
 licheng:user:recommend:userId
 
-#### redis 内存不能无限增加，一定要设置国企时间！！！
+#### redis 内存不能无限增加，一定要设置过期时间！！！
 
 
 
@@ -876,7 +876,7 @@ licheng:user:recommend:userId
 
 
 
-## 定时任务实现
+### 定时任务实现
 
 1. **Spring Scheduler（spring boot 默认整合了）**@Scheduled
 2. Quartz (独立于Spring存在的定时任务框架)
@@ -904,10 +904,486 @@ licheng:user:recommend:userId
 
 
 
-# todo 待优化
+----
 
-前端：动态展示页面标题，微调格式
+## 控制定时任务的执行
+
+为啥？
+
+1. 浪费资源（想象一下10000台服务器同时执行）
+2. 脏数据（比如同时插入重复数据）
 
 
 
-37：00
+**要控制定时任务在同一时间只有一个服务器能执行**
+
+怎么做？
+
+1. 分离定时任务和主程序，只在一个服务器运行定时任务，成本太大
+
+2. 写死配置，每个服务器都执行定时任务，但是只有 ip 符合配置的服务器才真实执行业务逻辑，其他的直接返回。成本最低；但是我们的 IP 可能是不固定的，把 IP 写的太死了
+
+3. 动态配置，配置可以轻松的，很方便更新的（**代码无需重启**），但是只有 ip 符合配置的服务器才真实执行业务逻辑
+
+   - 数据库
+   - Redis
+   - 配置中心（Nacos、Apollo、Spring Cloud Config）
+
+   问题：服务器多了、IP 不可控还是很麻烦、还是需要人工修改
+
+4. 分布式锁，只有抢到锁的服务器才能执行业务逻辑。坏处：增加成本；好处：不用手动配置，多少个服务器都一样
+
+
+
+**单机就会存在单点故障**。
+
+
+
+## 锁
+
+有限资源的情况下，控制同一时间（段）只有某些线程（用户 / 服务器）能访问到资源。
+
+Java 实现锁：synchronized 关键字、并发包的类
+
+问题：只对单个 JVM 有效，即对单个服务器有效
+
+
+
+
+
+## 分布式锁
+
+为啥需要分布式锁
+
+1. 有限资源的情况下，控制同一时间（段）只有某些线程（用户 / 服务器）能访问到资源。
+2. 单个锁只对单个 JVM 有效
+
+
+
+### 分布式锁实现的关键
+
+#### 抢锁机制
+
+怎么保证同一时间只有 1 个服务器能抢到锁？
+
+**核心思想**就是：先来的人先把数据改成自己的标识（服务器 IP），后来的人发现标识已存在，就抢锁失败，继续等待。
+
+等先来的人执行方法结束，把标识清空，其他的人继续抢锁。
+
+
+
+
+
+MySQL 数据库：select for update 行级锁 （最简单）
+
+乐观锁
+
+✔️Redis 实现：内存数据库、**读写速度快。** 支持 **setnx**、lua脚本，比较方便我们实现分布式锁
+
+setnx：set if not exists 如果不存在，则设置，只有设置成功返回true
+
+
+
+### 注意事项
+
+1. 用完锁要释放（省资源） √
+
+2. **锁一定要加过期时间**  √
+
+3. 如果方法执行时间过长，锁提前过期了？
+   问题：
+
+   1. 连锁效应：释放掉别人的锁
+   2. 这样还是会存在多个方法同时执行的情况？
+
+   解决方案：续期
+
+   ```java
+   boolean end = false;
+   
+   new Thred(()->{
+       if(!end){
+           续期
+       }
+   })
+   
+   end = true;
+   ```
+
+4. 释放锁的时候，有可能先判断出是自己的锁，当事者时锁过期了，最后还是释放别人的锁
+
+   ````java
+   // 原子操作
+   if(get lock == A){
+       del lock
+   }
+   ````
+
+   Redis + lua 脚本实现
+
+   lua不建议学，工作中用的不多
+
+5. Redis 如果是集群（而不是只有一个 Redis），如果分布式锁的数据不同步怎么办？
+   https://blog.csdn.net/qq_21383435/article/details/129733880
+
+
+
+#### 拒绝自己写！！！！！
+
+
+
+## Redisson 实现分布式锁
+
+Java客户端，数据网格
+
+实现了很多 Java 里支持的接口和数据结构
+
+
+
+Redisson 是一个 java 操作 Redis 的客户端，**提供了大量的分布式数据集来简化对 Redis 的操作和使用，可以让开发者使用本地集合一样使用 Redis，完全感知不到 Redis 的存在。**
+
+
+
+### 2 种引入方式
+
+1. spring boot starter 引入 （不推荐，版本迭代太快，容易冲突）[redisson/redisson-spring-boot-starter at master · redisson/redisson (github.com)](https://github.com/redisson/redisson/tree/master/redisson-spring-boot-starter)
+2. 直接引入https://github.com/redisson/redisson?tab=readme-ov-file#quick-start
+
+
+
+#### 示例代码
+
+```setnx
+void testWatchDog(){
+
+        RLock lock = redissonClient.getLock("licheng:precachejob:docache:lock");
+        try {
+            // 只有一个线程能获取到锁
+            if (lock.tryLock(0, -1, TimeUnit.MILLISECONDS)) {
+            	// todo 实际要执行的方法
+            	doSomeThings();
+                System.out.println("getLock: " + Thread.currentThread().getId());
+            }
+        } catch (InterruptedException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            // 只能释放自己的锁, 不要放到try里，如果报错了不会释放锁
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+                System.out.println("unLock: " + Thread.currentThread().getId());
+            }
+        }
+    }
+```
+
+
+
+### 定时任务 + 锁
+
+1. waitTime 设置未 0， 只抢一次，抢不到就放弃
+2. **注意释放锁要写在 finally 中**
+
+
+
+### 看门狗机制
+
+> redisson 中提供的续期机制
+
+
+
+开一个监听线程，如果方法还没执行完，就帮你重置 redis 的过期时间
+
+
+
+原理：
+
+1. 监听当前线程，默认过期时间30秒，每 10 秒续期一次（补到30秒）
+2. 如果线程挂掉（注意 debug 模式也会被它当成服务器宕机），则不会续期
+
+
+
+```java
+void testWatchDog(){
+
+        RLock lock = redissonClient.getLock("licheng:precachejob:docache:lock");
+        try {
+            // 只有一个线程能获取到锁
+            // lock.tryLock(等待时间,多长时间释放锁,TimeUnit.MILLISECONDS)
+            // 等待时间为0 即没获取到锁直接不执行任务，返回false
+            // 等待时间非0，即未获取到锁等待这些时间，若到时间仍未获取到锁，不执行，返回false
+            if (lock.tryLock(0, -1, TimeUnit.MILLISECONDS)) {
+                Thread.sleep(300000);
+                System.out.println("getLock: " + Thread.currentThread().getId());
+            }
+        } catch (InterruptedException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            // 只能释放自己的锁, 不要放到try里，如果报错了不会释放锁
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+                System.out.println("unLock: " + Thread.currentThread().getId());
+            }
+        }
+    }
+```
+
+
+
+
+
+----
+
+
+
+Zookeeper 实现
+
+
+
+## 组队功能
+
+理解为王者荣耀
+
+### 理想的应用场景
+
+我要跟别人一起参加竞赛或者做项目，可以发起队伍或者假如别人的队伍
+
+### 需求分析
+
+用户可以**创建**一个队伍（工会），设置队伍的人数、队伍名称（标题）、描述、超时时间
+
+> 队长、剩余人数
+>
+> 聊天？
+>
+> 公开 或 private 或 加密
+>
+> 信息流中不展示已过期的队伍
+>
+> **用户创建队伍最多5个** ，想多创建开VIP ：）
+
+
+
+展示队伍列表，根据标签名称搜索队伍 P0
+
+修改队伍信息 P0-P1
+
+用户创建队伍最多 5 个
+
+用户可以加入队伍（其他人、未满、未过期），允许加入多个队伍，但是要有上限 P0
+
+> 是否需要队长同意？筛选审批？
+
+用户可以退出队伍（如果是队长退出、权限转移给第二早加入的用户 —— 先来后到）P1
+
+队长可以解散队伍 P0
+
+分享队伍=》邀请其他用户加入队伍 P1
+
+队伍人满后发送消息通知 P1
+
+
+
+
+
+### 系统（接口）设计
+
+#### 创建队伍
+
+用户可以**创建**一个队伍（工会），设置队伍的人数、队伍名称（标题）、描述、超时时间
+
+> 队长、剩余人数
+>
+> 聊天？
+>
+> 公开 或 private 或 加密
+>
+> 信息流中不展示已过期的队伍
+
+
+
+1. 请求参数是否为空
+2. 是否登录，未登录不允许创建
+3. 校验信息
+   1. 队伍人数 > 1 且 <=20
+   2. 队伍标题 <= 20
+   3. 描述 <= 512
+   4. status 是否公开 （int）不传默认为 0（公开）
+   5. 如果 status 是加密状态，一点要有密码，且密码  <= 32
+   6. 超时时间 > 现在时间
+   7. 校验用户最多创建 5 个队伍
+4. 插入队伍信息到队伍表
+5. 插入用户 => 队伍关系到关系表
+
+
+
+#### 事务注解
+
+@Transactional
+
+要么数据操作都成功，要么都失败
+
+
+
+### 数据库表设计
+
+队伍表 team
+
+字段
+
+- id 主键 bigint （最简单、连续、放url上比较简短，但缺点是怕爬虫）
+- name 队伍名称
+- description 描述
+- maxNum 最大人数
+- expireTime 过期时间
+- userId 创建人 Id
+- status 0 - 公开，1 - 私有，2 - 加密
+- password 密码
+- createTime 创建时间
+- updateTime 更新时间
+- isDelete 是否删除
+
+
+
+````sql
+-- 队伍表
+create table team
+(
+    id          bigint auto_increment comment 'id' primary key,
+    name        varchar(256)                       not null comment '队伍名称',
+    description varchar(1024)                      null comment '描述',
+    maxNum      int      default 1                 not null comment '最大人数',
+    expireTime  datetime                           null comment '过期时间',
+    userId      bigint comment '用户id',
+    status      int      default 0                 not null comment '0 - 公开，1 - 私有，2 - 加密',
+    password    varchar(512)                       null comment '密码',
+    createTime  datetime default CURRENT_TIMESTAMP null comment '创建时间',
+    updateTime  datetime default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP,
+    isDelete    tinyint  default 0                 not null comment '是否删除'
+
+)
+    comment '队伍';
+````
+
+
+
+
+
+用户 - 队伍表user_team
+
+字段 
+
+- id 主键
+- userId 用户id
+- teamId 队伍id
+- joinTime 加入时间
+- createTime 创建时间
+- updateTime 更新时间
+- isDelete 是否删除
+
+
+
+````sql
+-- 用户队伍关系
+create table user_team
+(
+    id          bigint auto_increment comment 'id'
+        primary key,
+    userId          bigint comment '用户id',
+    teamId          bigint comment '队伍id',
+    joinTime   datetime  null comment '加入时间',
+    createTime  datetime default CURRENT_TIMESTAMP null comment '创建时间',
+    updateTime  datetime default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP,
+    isDelete    tinyint  default 0                 not null comment '是否删除'
+
+)
+    comment '用户队伍关系';
+````
+
+
+
+
+
+两个关系：
+
+1. 用户加了哪些队伍
+2. 队伍有哪些用户
+
+方式：
+
+1. **建立用户 - 队伍关系表 （便于修改，查询性能高一点，可以选这个，不用全表遍历）这里用该方法**
+2. 用户表补充已加入的队伍字段，队伍表补充已加入的用户字段（不用写多对多的代码，可以根据队伍查用户、根据用户查队伍）
+
+
+
+## 为什么需要请求参数包装类？
+
+1. 请求参数名称和实体类不一样
+2. 有一些参数用不到，如果要自动生成接口文档，会增加理解成本
+3. 多个对象对应一个字段
+
+
+
+
+
+可能有些字段
+
+
+
+### 实现
+
+库表设计
+
+增删改查
+
+业务逻辑开发
+
+
+
+
+
+##### 出现的问题汇总：
+
+1. 给后端传日期报以下错误：Cannot deserialize value of type java.util.Date from String
+
+   解决:  https://blog.csdn.net/Hunipei/article/details/136626580 
+
+   在对接前端的 DTO 实体类中，所有日期Date类型属性必须加上
+
+   ```java
+   @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+   ```
+
+   
+
+
+
+
+
+## 随机匹配
+
+
+
+
+
+
+
+
+
+# todo 需要学习内容
+
+1. Redis
+2. Session
+3. 
+
+
+
+# todo
+
+1. 登录页跳转
+2. 标签
+
+
+
+第46集  00：00 
+
+完成组队状态枚举类的定义，解下来继续完成后端Service层addTeam功能

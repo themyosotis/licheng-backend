@@ -55,7 +55,6 @@ public class PreCacheJob {
                     QueryWrapper<User> queryWrapper = new QueryWrapper<>();
                     Page<User> userPage = userService
                             .page(new Page<>(1, 20), queryWrapper);
-
                     String redisKey = String.format("licheng:user:recommend:%s", userId);
                     ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
                     // 写缓存
