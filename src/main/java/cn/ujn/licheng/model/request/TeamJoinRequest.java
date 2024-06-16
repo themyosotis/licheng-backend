@@ -8,7 +8,7 @@ import java.io.Serializable;
 import java.util.Date;
 
 /**
- * 用户登录请求体
+ * 用户加入队伍
  *
  * @author XinCheng
  * date 2024-04-06

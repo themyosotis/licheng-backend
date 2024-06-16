@@ -9,6 +9,7 @@ import cn.ujn.licheng.model.domain.User;
 import cn.ujn.licheng.model.dto.TeamQuery;
 import cn.ujn.licheng.model.request.TeamAddRequest;
 import cn.ujn.licheng.model.request.TeamJoinRequest;
+import cn.ujn.licheng.model.request.TeamQuitRequest;
 import cn.ujn.licheng.model.request.TeamUpdateRequest;
 import cn.ujn.licheng.model.vo.TeamUserVO;
 import cn.ujn.licheng.service.TeamService;
@@ -59,11 +60,12 @@ public class TeamController {
     }
 
     @PostMapping("/delete")
-    public BaseResponse<Boolean> deleteTeam(@RequestBody long id) {
+    public BaseResponse<Boolean> deleteTeam(@RequestBody long id, HttpServletRequest request) {
         if (id <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        boolean result = teamService.removeById(id);
+        User loginUser = userService.getLoginUser(request);
+        boolean result = teamService.deleteTeam(id, loginUser);
         if (!result) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "删除失败");
         }
@@ -120,12 +122,23 @@ public class TeamController {
     }
 
     @PostMapping("/join")
-    public BaseResponse<Boolean> joinTeam(@RequestBody TeamJoinRequest teamJoinRequest,HttpServletRequest request){
-        if(teamJoinRequest==null){
+    public BaseResponse<Boolean> joinTeam(@RequestBody TeamJoinRequest teamJoinRequest, HttpServletRequest request) {
+        if (teamJoinRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         User loginUser = userService.getLoginUser(request);
-        boolean result =teamService.joinTeam(teamJoinRequest,loginUser);
+        boolean result = teamService.joinTeam(teamJoinRequest, loginUser);
         return ResultUtils.success(result);
     }
+
+    @PostMapping("/quit")
+    public BaseResponse<Boolean> quitTeam(@RequestBody TeamQuitRequest teamQuitRequest, HttpServletRequest request) {
+        if (teamQuitRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+        boolean result = teamService.quitTeam(teamQuitRequest, loginUser);
+        return ResultUtils.success(result);
+    }
+
 }

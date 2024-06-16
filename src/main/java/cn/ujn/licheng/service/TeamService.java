@@ -4,6 +4,7 @@ import cn.ujn.licheng.model.domain.Team;
 import cn.ujn.licheng.model.domain.User;
 import cn.ujn.licheng.model.dto.TeamQuery;
 import cn.ujn.licheng.model.request.TeamJoinRequest;
+import cn.ujn.licheng.model.request.TeamQuitRequest;
 import cn.ujn.licheng.model.request.TeamUpdateRequest;
 import cn.ujn.licheng.model.vo.TeamUserVO;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -51,5 +52,22 @@ public interface TeamService extends IService<Team> {
      * @param loginUser
      * @return
      */
-    boolean joinTeam(TeamJoinRequest teamJoinRequest,User loginUser);
+    boolean joinTeam(TeamJoinRequest teamJoinRequest, User loginUser);
+
+    /**
+     * 退出队伍
+     *
+     * @param teamQuitRequest
+     * @param loginUser
+     * @return
+     */
+    boolean quitTeam(TeamQuitRequest teamQuitRequest, User loginUser);
+
+    /**
+     * 删除（解散）队伍
+     * @param id
+     * @param loginUser
+     * @return
+     */
+    boolean deleteTeam(long id,User loginUser);
 }
