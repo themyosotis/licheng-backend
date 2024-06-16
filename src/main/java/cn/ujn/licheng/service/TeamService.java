@@ -3,6 +3,7 @@ package cn.ujn.licheng.service;
 import cn.ujn.licheng.model.domain.Team;
 import cn.ujn.licheng.model.domain.User;
 import cn.ujn.licheng.model.dto.TeamQuery;
+import cn.ujn.licheng.model.request.TeamJoinRequest;
 import cn.ujn.licheng.model.request.TeamUpdateRequest;
 import cn.ujn.licheng.model.vo.TeamUserVO;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -32,7 +33,7 @@ public interface TeamService extends IService<Team> {
      * @param isAdmin
      * @return
      */
-    List<TeamUserVO> listTeams(TeamQuery teamQuery,boolean isAdmin);
+    List<TeamUserVO> listTeams(TeamQuery teamQuery, boolean isAdmin);
 
     /**
      * 更新队伍
@@ -41,5 +42,14 @@ public interface TeamService extends IService<Team> {
      * @param loginUser
      * @return
      */
-    boolean updateTeam(TeamUpdateRequest teamUpdateRequest,User loginUser);
+    boolean updateTeam(TeamUpdateRequest teamUpdateRequest, User loginUser);
+
+    /**
+     * 加入队伍
+     *
+     * @param teamJoinRequest
+     * @param loginUser
+     * @return
+     */
+    boolean joinTeam(TeamJoinRequest teamJoinRequest,User loginUser);
 }

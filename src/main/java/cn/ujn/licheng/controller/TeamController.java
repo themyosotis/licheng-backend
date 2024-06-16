@@ -8,6 +8,7 @@ import cn.ujn.licheng.model.domain.Team;
 import cn.ujn.licheng.model.domain.User;
 import cn.ujn.licheng.model.dto.TeamQuery;
 import cn.ujn.licheng.model.request.TeamAddRequest;
+import cn.ujn.licheng.model.request.TeamJoinRequest;
 import cn.ujn.licheng.model.request.TeamUpdateRequest;
 import cn.ujn.licheng.model.vo.TeamUserVO;
 import cn.ujn.licheng.service.TeamService;
@@ -116,5 +117,15 @@ public class TeamController {
         Page<Team> page = new Page<>(teamQuery.getPageNum(), teamQuery.getPageSize());
         Page<Team> resultPage = teamService.page(page, queryWrapper);
         return ResultUtils.success(resultPage);
+    }
+
+    @PostMapping("/join")
+    public BaseResponse<Boolean> joinTeam(@RequestBody TeamJoinRequest teamJoinRequest,HttpServletRequest request){
+        if(teamJoinRequest==null){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+        boolean result =teamService.joinTeam(teamJoinRequest,loginUser);
+        return ResultUtils.success(result);
     }
 }
