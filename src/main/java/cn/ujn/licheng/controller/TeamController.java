@@ -1,11 +1,13 @@
 package cn.ujn.licheng.controller;
 
 import cn.ujn.licheng.common.BaseResponse;
+import cn.ujn.licheng.common.DeleteRequest;
 import cn.ujn.licheng.common.ErrorCode;
 import cn.ujn.licheng.common.ResultUtils;
 import cn.ujn.licheng.exception.BusinessException;
 import cn.ujn.licheng.model.domain.Team;
 import cn.ujn.licheng.model.domain.User;
+import cn.ujn.licheng.model.domain.UserTeam;
 import cn.ujn.licheng.model.dto.TeamQuery;
 import cn.ujn.licheng.model.request.TeamAddRequest;
 import cn.ujn.licheng.model.request.TeamJoinRequest;
@@ -14,6 +16,7 @@ import cn.ujn.licheng.model.request.TeamUpdateRequest;
 import cn.ujn.licheng.model.vo.TeamUserVO;
 import cn.ujn.licheng.service.TeamService;
 import cn.ujn.licheng.service.UserService;
+import cn.ujn.licheng.service.UserTeamService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,7 +25,10 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 队伍接口
@@ -46,6 +52,9 @@ public class TeamController {
     @Autowired
     private TeamService teamService;
 
+    @Autowired
+    private UserTeamService userTeamService;
+
     @PostMapping("/add")
     public BaseResponse<Long> addTeam(@RequestBody TeamAddRequest teamAddRequest, HttpServletRequest request) {
         if (teamAddRequest == null) {
@@ -60,10 +69,11 @@ public class TeamController {
     }
 
     @PostMapping("/delete")
-    public BaseResponse<Boolean> deleteTeam(@RequestBody long id, HttpServletRequest request) {
-        if (id <= 0) {
+    public BaseResponse<Boolean> deleteTeam(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
+        if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+        long id = deleteRequest.getId();
         User loginUser = userService.getLoginUser(request);
         boolean result = teamService.deleteTeam(id, loginUser);
         if (!result) {
@@ -108,6 +118,7 @@ public class TeamController {
         return ResultUtils.success(teamList);
     }
 
+    //todo 查询分页
     @GetMapping("/list/page")
     public BaseResponse<Page<Team>> listTeamsByPage(TeamQuery teamQuery) {
         if (teamQuery == null) {
@@ -141,4 +152,49 @@ public class TeamController {
         return ResultUtils.success(result);
     }
 
+    /**
+     * 获取当前用户创建的队伍
+     *
+     * @param teamQuery
+     * @param request
+     * @return
+     */
+    @GetMapping("/list/my/create")
+    public BaseResponse<List<TeamUserVO>> listMyCreateTeams(TeamQuery teamQuery, HttpServletRequest request) {
+        if (teamQuery == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+
+        teamQuery.setUserId(loginUser.getId());
+        List<TeamUserVO> teamList = teamService.listTeams(teamQuery, true);
+        return ResultUtils.success(teamList);
+    }
+
+    /**
+     * 获取当前用户加入的队伍
+     *
+     * @param teamQuery
+     * @param request
+     * @return
+     */
+    @GetMapping("/list/my/join")
+    public BaseResponse<List<TeamUserVO>> listMyJoinTeams(TeamQuery teamQuery, HttpServletRequest request) {
+        if (teamQuery == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+        QueryWrapper<UserTeam> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("userId", loginUser.getId());
+        List<UserTeam> userTeamList = userTeamService.list(queryWrapper);
+        //取出不重复的队伍 id
+//        Map<Long, List<UserTeam>> listMap = userTeamList.stream()
+//                .collect(Collectors.groupingBy(UserTeam::getTeamId));
+//        ArrayList<Long> idList = new ArrayList<>(listMap.keySet());
+        ArrayList<Long> idList = new ArrayList<>(userTeamList.stream()
+                .collect(Collectors.groupingBy(UserTeam::getTeamId)).keySet());
+        teamQuery.setIdList(idList);
+        List<TeamUserVO> teamList = teamService.listTeams(teamQuery, true);
+        return ResultUtils.success(teamList);
+    }
 }
