@@ -7,6 +7,7 @@ import cn.ujn.licheng.exception.BusinessException;
 import cn.ujn.licheng.model.domain.User;
 import cn.ujn.licheng.model.request.UserLoginRequest;
 import cn.ujn.licheng.model.request.UserRegisterRequest;
+import cn.ujn.licheng.model.vo.UserVO;
 import cn.ujn.licheng.service.UserService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -116,6 +117,7 @@ public class UserController {
         return ResultUtils.success(list);
     }
 
+    // todo 推荐多个未实现
     @GetMapping("/recommend")
     public BaseResponse<Page<User>> recommendUsers(long pageSize, long pageNum, HttpServletRequest request) {
         // 如果有缓存，直接读缓存
@@ -132,7 +134,7 @@ public class UserController {
                 .page(new Page<>(pageNum, pageSize), queryWrapper);
         // 写缓存
         try {
-            valueOperations.set(redisKey, userPage,30000, TimeUnit.MILLISECONDS);
+            valueOperations.set(redisKey, userPage, 30000, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             log.error("redis set key error", e);
         }
@@ -170,6 +172,24 @@ public class UserController {
         }
         boolean b = userService.removeById(id);
         return ResultUtils.success(b);
+    }
+
+    /**
+     * 获取最匹配的用户
+     *
+     * @param num
+     * @param request
+     * @return
+     */
+    @GetMapping("/match")
+    public BaseResponse<List<User>> matchUsers(long num, HttpServletRequest request) {
+        if(num<=0||num>20){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User user = userService.getLoginUser(request);
+        return ResultUtils.success(userService.matchUsers(num,user));
+
+
     }
 
 
