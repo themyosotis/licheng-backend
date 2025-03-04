@@ -7,7 +7,6 @@ import cn.ujn.licheng.exception.BusinessException;
 import cn.ujn.licheng.model.domain.User;
 import cn.ujn.licheng.model.request.UserLoginRequest;
 import cn.ujn.licheng.model.request.UserRegisterRequest;
-import cn.ujn.licheng.model.vo.UserVO;
 import cn.ujn.licheng.service.UserService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
